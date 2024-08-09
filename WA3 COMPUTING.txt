@@ -1,0 +1,285 @@
+import random
+from google.colab import output
+
+player_x = 0
+player_y = 0
+player_hp = 100
+armor = "None"
+armorhpgive = 0
+money = 0
+ammo_revolver = 6
+ammo_rifle = 10
+enemies_count = random.randint(1, 10)
+switch = False
+boom_tiles = []
+emptygun = False
+clearedmaps = 0
+
+username = input("What is your name, operator? ")
+
+maps = {
+    "Halcyon Corporation": [
+        ["Lobby", "Reception", "Office", "Laboratory"],
+        ["Hallway", "Break Room", "Conference", "Storage"],
+        ["IT Room", "Control Room", "Library", "Restroom"],
+        ["Camera Room", "Training", "Shooting Range", "Prayer Rooms"]
+    ],
+    "Urban Annex": [
+        ["Downtown", "Market", "Park", "Subway Station"],
+        ["High-Rise", "Alleyway", "Shopping Mall", "Metro Entrance"],
+        ["Office Building", "Construction Site", "Residential Area", "Police Station"],
+        ["Warehouse", "Rooftops", "Graffiti Alley", "Helipad"]
+    ],
+    "Innaxia College": [
+        ["Main Entrance", "Reception", "Administrative Offices", "Principal's Office"],
+        ["Classrooms", "Library", "Cafeteria", "Art Room"],
+        ["Gymnasium", "Science Lab", "Music Room", "Nurse's Office"],
+        ["Hallways", "Emergency Exits", "Storage Room", "Parking Lot"]
+    ]
+}
+
+#choosing random map
+map_name = random.choice(list(maps.keys()))
+mapchosen = maps[map_name]
+
+enemy_types = {
+    "Grunt": {"health": 50, "damage_range": (5, 10), "power": "No special ability"},
+    "Assault Specialist": {"health": 100, "damage_range": (10, 20), "power": "Increased attack damage"},
+    "Tank": {"health": 300, "damage_range": (2, 10), "power": "High health, reduced damage"},
+    "Demolitions Expert": {"health": 70, "damage_range": (1, 5), "power": "Explosive death"}
+}
+
+#spawning enemies
+def place_enemies():
+    coord = [(x, y) for x in range(4) for y in range(4)]
+    random.shuffle(coord)
+    enemy_coord = {coord[i]: random.choice(list(enemy_types.keys())) for i in range(min(enemies_count, len(coord)))}
+    return enemy_coord
+
+#enemy attacking function
+def enemy_attack(player_hp, enemy_positions):
+    for (badx, bady), enemy_type in enemy_positions.items():
+        if (badx, bady) == (player_x, player_y):
+            attributes = enemy_types[enemy_type]
+            damage = random.randint(*attributes["damage_range"])
+            player_hp -= damage
+            print(f"The {enemy_type} attacks you for {damage} damage. Your health is now {player_hp}.")
+    return player_hp
+
+enemy_positions = place_enemies()
+
+print(f"Radio:\n Operator {username}, you have been deployed to the {map_name} to carry out a counter-hostile mission.\n You have {player_hp} health, ${money} to spend\n You have 2 weapons, one revolver and one rifle, you may use them interchangeably.")
+print()
+
+last_position = (player_x, player_y)
+
+#shop, to buy armor
+while True:
+    print("\nWelcome to the shop!")
+    print("Available Armor:")
+    print("1. III Aeiges: +200 HP ($500)")
+    print("2. III-A Raider: +100 HP ($300)")
+    print("3. II-A Scout: +50 HP ($100)")
+    print("4. None (No additional health, free)")
+
+    choice = input("Select armor by number (1-4): ")
+    if choice == '1':
+        if money >= 500:
+            money -= 500
+            armor = "III Aeiges"
+            armorhpgive = 200
+            print("You bought III Aeiges armor. +200 HP.")
+            break
+        else:
+            print("Not enough money!")
+    elif choice == '2':
+        if money >= 300:
+            money -= 300
+            armor = "III-A Raider"
+            armorhpgive = 100
+            print("You bought III-A Raider armor. +100 HP.")
+            break
+        else:
+            print("Not enough money!")
+    elif choice == '3':
+        if money >= 100:
+            money -= 100
+            armor = "II-A Scout"
+            armorhpgive = 50
+            print("You bought II-A Scout armor. +50 HP.")
+            break
+        else:
+            print("Not enough money!")
+    elif choice == '4':
+        armor = "None"
+        armorhpgive = 0
+        print("You chose no armor.")
+        break
+    else:
+        print("Invalid choice!")
+
+player_hp += armorhpgive
+
+#Handling map printing
+while True:
+    for i in range(len(mapchosen)):
+        for j in range(len(mapchosen[i])):
+            if i == player_x and j == player_y:
+                print("P", end=" ")
+            elif (i, j) in enemy_positions:
+                print("E", end=" ")
+            else:
+                print(".", end=" ")
+        print()
+    print()
+
+    print(f"You are in the {mapchosen[player_x][player_y]}")
+
+    action = input("What do you want to do? (w/a/s/d to move, f to engage, q to switch weapons, r to reload, m to defuse): ").lower()
+    output.clear()
+
+    new_pos = (player_x, player_y)
+
+#movement handling
+    if action == "w":
+        if player_x > 0:
+            player_x -= 1
+        else:
+            print("You can't go that way.")
+
+    elif action == "s":
+        if player_x < len(mapchosen) - 1:
+            player_x += 1
+        else:
+            print("You can't go that way.")
+
+    elif action == "a":
+        if player_y > 0:
+            player_y -= 1
+        else:
+            print("You can't go that way.")
+
+    elif action == "d":
+        if player_y < len(mapchosen[player_x]) - 1:
+            player_y += 1
+        else:
+            print("You can't go that way.")
+
+    #switch gun
+    elif action == "q":
+        switch = not switch
+        weapon = "rifle" if switch else "revolver"
+        print(f"Switched to {weapon}.")
+
+    #reload gun
+    elif action == "r":
+        if not switch:
+            ammo_revolver = 6
+            print("Revolver reloaded!")
+            emptygun = False
+        else:
+            ammo_rifle = 10
+            print("Rifle reloaded!")
+            emptygun = False
+
+    #handles shooting for revolver
+    elif action == "f":
+        if not switch:
+            if ammo_revolver > 0:
+                if (player_x, player_y) in enemy_positions:
+                    enemy_type = enemy_positions[(player_x, player_y)]
+                    attributes = enemy_types[enemy_type]
+                    damage = random.randint(5, 20)
+                    attributes["health"] -= damage
+                    ammo_revolver -= 1
+                    print(f"You shoot the {enemy_type} for {damage} damage with your revolver. The {enemy_type} has {attributes['health']} health left.")
+                    if attributes["health"] <= 0:
+                        print(f"The {enemy_type} has been defeated!")
+                        #demo expert special ability
+                        if enemy_type == "Demolitions Expert":
+                            boom_tiles.append((player_x, player_y))
+                            print("A bomb has been placed on this tile! You may try to defuse it (m to defuse)!")
+                        del enemy_positions[(player_x, player_y)]
+                        money += random.randint(10, 20)
+                else:
+                    print("No enemy to engage!")
+            else:
+                print("Out of revolver ammo!")
+                emptygun = True
+        else:
+            #handles shooting for rifle
+            if ammo_rifle > 0:
+                if (player_x, player_y) in enemy_positions:
+                    enemy_type = enemy_positions[(player_x, player_y)]
+                    attributes = enemy_types[enemy_type]
+                    damage = random.randint(2, 10)
+                    attributes["health"] -= damage
+                    ammo_rifle -= 1
+                    print(f"You shoot the {enemy_type} for {damage} damage with your rifle. The {enemy_type} has {attributes['health']} health left.")
+                    if attributes["health"] <= 0:
+                        print(f"The {enemy_type} has been defeated!")
+                        #demo expert special ability
+                        if enemy_type == "Demolitions Expert":
+                            boom_tiles.append((player_x, player_y))
+                            print("A bomb has been placed on this tile! You may try to defuse it (m to defuse)!")
+                        del enemy_positions[(player_x, player_y)]
+                        money += random.randint(10, 20)
+                else:
+                    print("No enemy to engage!")
+            else:
+                print("Out of rifle ammo!")
+                emptygun = True
+
+    #check if player stepped off bomb, works like a landmine, booms when stepped off
+    if last_position in boom_tiles and last_position != new_pos:
+        print("You've stepped off a bomb tile! You take 100 damage.")
+        player_hp -= 100
+        boom_tiles.remove(last_position)
+    
+    #check if player is alive
+    if player_hp <= 0:
+        print("You have been extracted from the mission. Better luck next time.")
+        break
+
+    #defusal minigame, luck based
+    if last_position in boom_tiles and last_position == new_pos and action == "m":
+        wires = ["Red", "Blue", "Green", "Yellow"]
+        correct_wire = random.choice(wires)
+        random.shuffle(wires)
+        print("Wires:", wires)
+        choice = int(input("Select the wire number (1-4): "))
+        if 1 <= choice <= 4:
+            selected_wire = wires[choice - 1]
+            if selected_wire == correct_wire:
+                print("Bomb defused successfully!")
+                boom_tiles.remove(last_position)
+            else:
+                print("The bomb explodes, it deals less damage than if you were to step off!")
+                player_hp -= random.randint(5,15)
+
+    #condition in which enemy attacks
+    if emptygun:
+        player_hp = enemy_attack(player_hp, enemy_positions)
+
+    #win conditional!!!
+    if len(enemy_positions) == 0 and len(boom_tiles) == 0:
+        clearedmaps += 1
+        print(f"Map cleared! Maps cleared: {clearedmaps}")
+        if clearedmaps >= 3:
+            print(f"You have succeeded in your mission, enjoy your retirement operator {username}.")
+            break
+        else:
+            map_name = random.choice(list(maps.keys()))
+            mapchosen = maps[map_name]
+            enemy_positions = place_enemies()
+            player_x, player_y = 0, 0
+            # player_y = 0
+            print(f"New map: {map_name}")
+            print()
+
+    #heads-up display
+    print(f"Health: {player_hp}, Ammo Revolver: {ammo_revolver}, Ammo Rifle: {ammo_rifle}")
+
+    last_position = new_pos
+
+exit()
